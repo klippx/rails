@@ -59,6 +59,22 @@ class ActiveSchemaTest < ActiveRecord::TestCase
     assert_equal expected, add_index(:people, [:last_name, :first_name], :length => 15, :using => :btree)
   end
 
+  def test_add_constraint
+    expected = %(ALTER TABLE `accounts` ADD CONSTRAINT `constraint_accounts_on_branch_id` UNIQUE (`branch_id`))
+    assert_equal expected, add_constraint(:accounts, :branch_id, unique: true)
+
+    expected = %(ALTER TABLE `accounts` ADD CONSTRAINT `constraint_accounts_on_branch_id_and_party_id` UNIQUE (`branch_id`, `party_id`))
+    assert_equal expected, add_constraint(:accounts, [:branch_id, :party_id], unique: true)
+
+    # Deferrable have no effect in mysql
+    expected = %(ALTER TABLE `accounts` ADD CONSTRAINT `constraint_accounts_on_branch_id_and_party_id` UNIQUE (`branch_id`, `party_id`))
+    assert_equal expected, add_constraint(:accounts, [:branch_id, :party_id], unique: true, deferrable: true)
+
+    assert_raise ArgumentError do
+      add_constraint(:accounts, [:branch_id, :party_id])
+    end
+  end
+
   def test_drop_table
     assert_equal "DROP TABLE `people`", drop_table(:people)
   end

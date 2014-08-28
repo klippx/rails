@@ -27,6 +27,9 @@ class PostgresqlActiveSchemaTest < ActiveRecord::TestCase
     expected = %(ALTER TABLE "accounts" ADD CONSTRAINT "constraint_accounts_on_branch_id" UNIQUE ("branch_id"))
     assert_equal expected, add_constraint(:accounts, :branch_id, unique: true)
 
+    expected = %(ALTER TABLE "accounts" ADD CONSTRAINT "my_custom_name" UNIQUE ("branch_id"))
+    assert_equal expected, add_constraint(:accounts, :branch_id, name: "my_custom_name", unique: true)
+
     expected = %(ALTER TABLE "accounts" ADD CONSTRAINT "constraint_accounts_on_branch_id_and_party_id" UNIQUE ("branch_id", "party_id"))
     assert_equal expected, add_constraint(:accounts, [:branch_id, :party_id], unique: true)
 

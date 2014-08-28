@@ -545,6 +545,12 @@ module ActiveRecord
       # The constraint will be named after the table and the column name(s), unless
       # you pass <tt>:name</tt> as an option.
       #
+      # Note on UNIQUE index:
+      # Adding a *unique* constraint will automatically create a unique index on the column(s) specified.
+      # It is unnecessary to use both add_index and add_constraint in this case, as the query planner will
+      # be able to use the one created with add_constraint(..., unique: true).
+      # This is the case in both mysql and postgres.
+      #
       # ====== Creating a simple unique constraint
       #
       #   add_constraint(:accounts, [:branch_id, :party_id], unique: true)
@@ -906,6 +912,7 @@ module ActiveRecord
         constraint_name    = constraint_name(table_name, column: column_names)
         constraint_columns = quoted_columns_for_constraint(column_names, options).join(", ")
         constraint_type    = options[:unique] ? "UNIQUE" : ""
+        constraint_name    = options[:name].to_s if options.key?(:name)
 
         if supports_deferrable_constraints?
           constraint_options = options[:deferrable] ? " DEFERRABLE INITIALLY IMMEDIATE" : ""
