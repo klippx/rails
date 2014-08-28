@@ -533,9 +533,39 @@ module ActiveRecord
       #   CREATE FULLTEXT INDEX index_developers_on_name ON developers (name) -- MySQL
       #
       # Note: only supported by MySQL. Supported: <tt>:fulltext</tt> and <tt>:spatial</tt> on MyISAM tables.
+      #
       def add_index(table_name, column_name, options = {})
         index_name, index_type, index_columns, index_options = add_index_options(table_name, column_name, options)
         execute "CREATE #{index_type} INDEX #{quote_column_name(index_name)} ON #{quote_table_name(table_name)} (#{index_columns})#{index_options}"
+      end
+
+      # Adds a new constraint to the table. +column_name+ can be a single Symbol, or
+      # an Array of Symbols.
+      #
+      # The constraint will be named after the table and the column name(s), unless
+      # you pass <tt>:name</tt> as an option.
+      #
+      # ====== Creating a simple unique constraint
+      #
+      #   add_constraint(:accounts, [:branch_id, :party_id], unique: true)
+      #
+      # generates:
+      #
+      #   ALTER TABLE accounts ADD CONSTRAINT accounts_on_branch_id_and_party_id UNIQUE (branch_id, party_id)
+      #
+      # ====== Creating a deferrable unique constraint
+      #
+      #   add_constraint(:accounts, [:branch_id, :party_id], unique: true, deferrable: true)
+      #
+      # generates:
+      #
+      #   ALTER TABLE accounts ADD CONSTRAINT accounts_on_branch_id_and_party_id UNIQUE (branch_id, party_id) DEFERRABLE INITIALLY IMMEDIATE -- PostgreSQL
+      #
+      # Note: only supported by PostgreSQL.
+      #
+      def add_constraint(table_name, column_name, options = {})
+        constraint_name, constraint_type, constraint_columns, constraint_options = add_constraint_options(table_name, column_name, options)
+        execute "ALTER TABLE #{quote_table_name(table_name)} ADD CONSTRAINT #{quote_column_name(constraint_name)} #{constraint_type} (#{constraint_columns})#{constraint_options}"
       end
 
       # Removes the given index from the table.
@@ -576,6 +606,20 @@ module ActiveRecord
         return unless old_index_def
         add_index(table_name, old_index_def.columns, name: new_name, unique: old_index_def.unique)
         remove_index(table_name, name: old_name)
+      end
+
+      def constraint_name(table_name, options) #:nodoc:
+        if Hash === options
+          if options[:column]
+            "constraint_#{table_name}_on_#{Array(options[:column]) * '_and_'}"
+          elsif options[:name]
+            options[:name]
+          else
+            raise ArgumentError, "You must specify the constraint name"
+          end
+        else
+          constraint_name(table_name, :column => options)
+        end
       end
 
       def index_name(table_name, options) #:nodoc:
@@ -857,6 +901,23 @@ module ActiveRecord
         Table.new(table_name, base)
       end
 
+      def add_constraint_options(table_name, column_name, options = {}) #:nodoc:
+        column_names       = Array(column_name)
+        constraint_name    = constraint_name(table_name, column: column_names)
+        constraint_columns = quoted_columns_for_constraint(column_names, options).join(", ")
+        constraint_type    = options[:unique] ? "UNIQUE" : ""
+
+        if supports_deferrable_constraints?
+          constraint_options = options[:deferrable] ? " DEFERRABLE INITIALLY IMMEDIATE" : ""
+        end
+
+        if constraint_type.empty?
+          raise ArgumentError.new("You must specify the constraint type")
+        end
+
+        [constraint_name, constraint_type, constraint_columns, constraint_options]
+      end
+
       def add_index_options(table_name, column_name, options = {}) #:nodoc:
         column_names = Array(column_name)
         index_name   = index_name(table_name, column: column_names)
@@ -903,6 +964,12 @@ module ActiveRecord
           end
 
           return option_strings
+        end
+
+        def quoted_columns_for_constraint(column_names, options = {})
+          option_strings = Hash[column_names.map {|name| [name, '']}]
+
+          column_names.map {|name| quote_column_name(name) + option_strings[name]}
         end
 
         # Overridden by the MySQL adapter for supporting index lengths

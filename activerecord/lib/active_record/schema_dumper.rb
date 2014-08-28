@@ -184,6 +184,11 @@ HEADER
         stream
       end
 
+      # FIXME: Dump constraints here
+      def constraints(table, stream)
+      end
+
+      # FIXME: Do not dump constraints here
       def indexes(table, stream)
         if (indexes = @connection.indexes(table)).any?
           add_index_statements = indexes.map do |index|

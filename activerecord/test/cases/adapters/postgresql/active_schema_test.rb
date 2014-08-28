@@ -23,6 +23,21 @@ class PostgresqlActiveSchemaTest < ActiveRecord::TestCase
     assert_equal %(CREATE DATABASE "aimonetti" ENCODING = 'UTF8' LC_COLLATE = 'ja_JP.UTF8' LC_CTYPE = 'ja_JP.UTF8'), create_database(:aimonetti, :encoding => :"UTF8", :collation => :"ja_JP.UTF8", :ctype => :"ja_JP.UTF8")
   end
 
+  def test_add_constraint
+    expected = %(ALTER TABLE "accounts" ADD CONSTRAINT "constraint_accounts_on_branch_id" UNIQUE ("branch_id"))
+    assert_equal expected, add_constraint(:accounts, :branch_id, unique: true)
+
+    expected = %(ALTER TABLE "accounts" ADD CONSTRAINT "constraint_accounts_on_branch_id_and_party_id" UNIQUE ("branch_id", "party_id"))
+    assert_equal expected, add_constraint(:accounts, [:branch_id, :party_id], unique: true)
+
+    expected = %(ALTER TABLE "accounts" ADD CONSTRAINT "constraint_accounts_on_branch_id_and_party_id" UNIQUE ("branch_id", "party_id") DEFERRABLE INITIALLY IMMEDIATE)
+    assert_equal expected, add_constraint(:accounts, [:branch_id, :party_id], unique: true, deferrable: true)
+
+    assert_raise ArgumentError do
+      add_constraint(:accounts, [:branch_id, :party_id], deferrable: true)
+    end
+  end
+
   def test_add_index
     # add_index calls index_name_exists? which can't work since execute is stubbed
     ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.stubs(:index_name_exists?).returns(false)
