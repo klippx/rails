@@ -311,6 +311,28 @@ module ActiveRecord
         assert_equal Arel.sql('$2'), bind
       end
 
+      def test_unique_constraint_adds_unique_index
+        with_example_table do
+          @connection.add_constraint 'ex', %w{ id number }, name: 'unique_id_number', unique: true
+          index = @connection.indexes('ex').find { |idx| idx.name == 'unique_id_number' }
+          assert_equal true, index.unique
+        end
+      end
+
+      # WIP: Either I need to fix .constraints and dump add_constraint in schema dumper, but there is lack of support of getting
+      # constraints info in pg_get_constraintdef:
+      def test_unique_deferrable_constraint
+        with_example_table do
+          @connection.add_constraint 'ex', %w{ id number }, name: 'unique_id_number', unique: true, deferrable: true
+          index = @connection.indexes('ex').find { |idx| idx.name == 'unique_id_number' }
+          puts index
+          puts @connection
+          puts @connection.methods.grep /constraint/
+          puts @connection.constraints('ex')
+          assert_equal true, index.unique
+        end
+      end
+
       def test_partial_index
         with_example_table do
           @connection.add_index 'ex', %w{ id number }, :name => 'partial', :where => "number > 100"

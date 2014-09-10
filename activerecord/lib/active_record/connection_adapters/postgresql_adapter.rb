@@ -163,6 +163,10 @@ module ActiveRecord
         true
       end
 
+      def supports_deferrable_constraints?
+        true
+      end
+
       def index_algorithms
         { concurrently: 'CONCURRENTLY' }
       end

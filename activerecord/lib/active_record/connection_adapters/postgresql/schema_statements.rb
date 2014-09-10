@@ -127,6 +127,19 @@ module ActiveRecord
           SQL
         end
 
+        # WIP...
+        def constraints(table_name, name = nil)
+           result = query(<<-SQL, 'SCHEMA')
+             SELECT distinct i.relname, d.contype, d.condeferrable, pg_get_constraintdef(d.oid), t.oid
+             FROM pg_class t
+             INNER JOIN pg_constraint d ON t.oid = d.conrelid
+             INNER JOIN pg_class i ON d.conindid = i.oid
+             WHERE t.relname = '#{table_name}'
+               AND i.relnamespace IN (SELECT oid FROM pg_namespace WHERE nspname = ANY (current_schemas(false)) )
+            ORDER BY i.relname
+          SQL
+        end
+
         def index_name_exists?(table_name, index_name, default)
           exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
             SELECT COUNT(*)
